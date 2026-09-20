@@ -34,11 +34,12 @@
   },
   "scripts": {
     "build": "tsc -p tsconfig.json",
-    "test": "tsc -p tsconfig.test.json && node --test \".test-build/test/**/*.test.js\"",
-    "sync-skill": "node scripts/sync-skill.mjs",
-    "prepublishOnly": "npm run build",
+    "build:test": "tsc -p tsconfig.test.json",
+    "test": "npm run build:test && node scripts/run-tests.mjs",
     "typecheck": "tsc -p tsconfig.test.json --noEmit",
-    "check-skill": "node scripts/sync-skill.mjs --check"
+    "sync-skill": "node scripts/sync-skill.mjs",
+    "check-skill": "node scripts/sync-skill.mjs --check",
+    "prepack": "npm run build"
   },
   "devDependencies": {
     "@types/node": "^24.3.0",

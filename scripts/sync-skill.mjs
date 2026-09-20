@@ -21,9 +21,18 @@ const ORIGIN = (process.env.NOSLOPUI_ORIGIN || 'https://noslopui.com').replace(/
 const TARGET = fileURLToPath(new URL('../SKILL.md', import.meta.url));
 const check = process.argv.includes('--check');
 
-const res = await fetch(`${ORIGIN}/skill/SKILL.md`);
+const res = await fetch(`${ORIGIN}/skill/SKILL.md`, {
+  headers: { 'user-agent': 'noslopui-cli-sync (+https://github.com/noslopUI/cli)' },
+});
 if (!res.ok) {
-  console.error(`Could not download the skill: HTTP ${res.status}`);
+  // Print enough to tell a real 404 apart from something in front of the
+  // server answering for it — a bot filter or a proxy serving a challenge
+  // page looks nothing like a missing file, and guessing wastes a CI cycle.
+  console.error(`Could not download the skill: HTTP ${res.status} ${res.statusText}`);
+  console.error(`  content-type: ${res.headers.get('content-type') ?? '(none)'}`);
+  console.error(`  server:       ${res.headers.get('server') ?? '(none)'}`);
+  console.error(`  cf-ray:       ${res.headers.get('cf-ray') ?? '(none)'}`);
+  console.error(`  body starts:  ${(await res.text()).slice(0, 300).replace(/\s+/g, ' ')}`);
   process.exitCode = 1;
 } else {
   const latest = await res.text();

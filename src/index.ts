@@ -12,8 +12,9 @@ import { update } from './commands/update.js';
 import { login } from './commands/login.js';
 import { color, fail, say } from './lib/ui.js';
 import { origin } from './lib/api.js';
+import { CLI_VERSION as VERSION } from './lib/version.js';
 
-const VERSION = '0.1.0';
+
 
 function usage(): void {
   say(`

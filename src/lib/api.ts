@@ -3,8 +3,17 @@
 
 import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
+import { CLI_VERSION } from './version.js';
 
 export const DEFAULT_ORIGIN = 'https://noslopui.com';
+
+/**
+ * Identify ourselves on every request. A tool that talks to a server should
+ * say what it is: it makes our own logs readable, and it gives anything
+ * sitting in front of the server (a CDN, a bot filter) something honest to
+ * recognise instead of a bare runtime default.
+ */
+export const USER_AGENT = `noslopui-cli/${CLI_VERSION} (+https://github.com/noslopUI/cli)`;
 
 /** Overridable so the flow can be exercised against a local server in tests. */
 export const origin = (): string => (process.env.NOSLOPUI_ORIGIN || DEFAULT_ORIGIN).replace(/\/$/, '');
@@ -28,7 +37,7 @@ async function post(path: string, body: unknown): Promise<{ status: number; json
   try {
     res = await fetch(`${origin()}${path}`, {
       method: 'POST',
-      headers: { 'content-type': 'application/json' },
+      headers: { 'content-type': 'application/json', 'user-agent': USER_AGENT },
       body: JSON.stringify(body),
     });
   } catch (err) {
@@ -101,6 +110,7 @@ export async function checkServer(key?: string): Promise<ServerCheck> {
     'content-type': 'application/json',
     accept: 'application/json, text/event-stream',
     'mcp-protocol-version': '2025-06-18',
+    'user-agent': USER_AGENT,
   };
   if (key) headers.authorization = `Bearer ${key}`;
   try {
@@ -151,7 +161,7 @@ export type SkillDownload = { markdown: string; source: 'server' | 'bundled' };
  */
 export async function fetchSkill(): Promise<SkillDownload> {
   try {
-    const res = await fetch(`${origin()}/skill/SKILL.md`);
+    const res = await fetch(`${origin()}/skill/SKILL.md`, { headers: { 'user-agent': USER_AGENT } });
     if (res.ok) {
       const text = await res.text();
       if (text.startsWith('---')) return { markdown: text, source: 'server' };
