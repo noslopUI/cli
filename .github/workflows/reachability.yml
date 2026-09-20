@@ -29,39 +29,47 @@ jobs:
         run: |
           set +e
           fail=0
+
+          # Results go to the job summary as well as the log. A public repo's
+          # job LOGS need admin rights to read; its check-run summary does not,
+          # so the summary is the one place this can be read back without a
+          # token.
+          report() { printf '%s\n' "$1" | tee -a "$GITHUB_STEP_SUMMARY"; }
+
           probe() {
             name="$1"; shift
             status=$(curl -s -o /tmp/body.txt -D /tmp/head.txt -w '%{http_code}' "$@")
             ray=$(grep -i '^cf-ray:' /tmp/head.txt | tr -d '\r' | cut -d' ' -f2-)
-            ctype=$(grep -i '^content-type:' /tmp/head.txt | tr -d '\r' | cut -d' ' -f2-)
+            ctype=$(grep -i '^content-type:' /tmp/head.txt | tr -d '\r' | cut -d' ' -f2- | cut -c1-28)
             challenge=""
-            grep -qi 'just a moment' /tmp/body.txt && challenge=" [CHALLENGE PAGE]"
-            printf '%-28s %s  %-30s %s%s\n' "$name" "$status" "$ctype" "$ray" "$challenge"
+            grep -qi 'just a moment' /tmp/body.txt && challenge="  <-- CHALLENGE PAGE"
+            report "$(printf '%-26s %-5s %-30s %s%s' "$name" "$status" "$ctype" "$ray" "$challenge")"
             case "$status" in
               2*) ;;
               *) fail=$((fail+1)) ;;
             esac
           }
 
-          echo "endpoint                     code  content-type                   cf-ray"
-          echo "--------------------------------------------------------------------------------"
-          probe "GET /skill/SKILL.md"    https://noslopui.com/skill/SKILL.md
-          probe "GET /"                  https://noslopui.com/
-          probe "POST /api/mcp"          -X POST https://noslopui.com/api/mcp \
-                                          -H 'content-type: application/json' \
-                                          -H 'accept: application/json, text/event-stream' \
-                                          -H 'mcp-protocol-version: 2025-06-18' \
-                                          -d '{"jsonrpc":"2.0","id":1,"method":"tools/list","params":{}}'
+          report '```'
+          report "$(printf '%-26s %-5s %-30s %s' endpoint code content-type cf-ray)"
+          report "--------------------------------------------------------------------------------"
+          probe "GET /skill/SKILL.md"      https://noslopui.com/skill/SKILL.md
+          probe "GET /"                    https://noslopui.com/
+          probe "GET /mcp"                 https://noslopui.com/mcp
+          probe "POST /api/mcp"            -X POST https://noslopui.com/api/mcp \
+                                            -H 'content-type: application/json' \
+                                            -H 'accept: application/json, text/event-stream' \
+                                            -H 'mcp-protocol-version: 2025-06-18' \
+                                            -d '{"jsonrpc":"2.0","id":1,"method":"tools/list","params":{}}'
           probe "POST /api/cli/auth/start" -X POST https://noslopui.com/api/cli/auth/start \
-                                          -H 'content-type: application/json' \
-                                          -d '{"clientName":"ci-probe","agents":["claude-code"]}'
+                                            -H 'content-type: application/json' \
+                                            -d '{"clientName":"ci-probe","agents":["claude-code"]}'
+          report '```'
 
-          echo
           if [ "$fail" -gt 0 ]; then
-            echo "$fail endpoint(s) did not answer 2xx from this runner."
-            echo "If the body says 'Just a moment', bot protection is challenging machine"
-            echo "traffic — an MCP client cannot solve that, so agents in cloud"
-            echo "environments cannot reach noslopUI at all."
+            report "**$fail endpoint(s) did not answer 2xx from this runner.**"
+            report "A 'CHALLENGE PAGE' above means bot protection is challenging machine traffic."
+            report "An MCP client cannot solve that, so agents in cloud environments cannot reach noslopUI."
             exit 1
           fi
-          echo "All endpoints reachable from a datacenter IP."
+          report "**All endpoints reachable from a datacenter IP.**"
