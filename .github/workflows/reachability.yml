@@ -23,6 +23,9 @@ jobs:
     name: can a machine reach noslopui.com
     runs-on: ubuntu-latest
     continue-on-error: true
+    env:
+      MCP_BODY: '{"jsonrpc":"2.0","id":1,"method":"tools/list","params":{}}'
+      START_BODY: '{"clientName":"ci-probe","agents":["claude-code"]}'
     steps:
       - uses: actions/checkout@v4
       - name: probe every endpoint the CLI and an agent depend on
@@ -31,9 +34,8 @@ jobs:
           fail=0
 
           # Results go to the job summary as well as the log. A public repo's
-          # job LOGS need admin rights to read; its check-run summary does not,
-          # so the summary is the one place this can be read back without a
-          # token.
+          # job LOGS need admin rights to read; its summary is visible to
+          # anyone who can see the run, so that is where the answer belongs.
           report() { printf '%s\n' "$1" | tee -a "$GITHUB_STEP_SUMMARY"; }
 
           probe() {
@@ -46,28 +48,34 @@ jobs:
             report "$(printf '%-26s %-5s %-30s %s%s' "$name" "$status" "$ctype" "$ray" "$challenge")"
             case "$status" in
               2*) ;;
-              *) fail=$((fail+1)) ;;
+              *) fail=$((fail + 1)) ;;
             esac
           }
 
           report '```'
           report "$(printf '%-26s %-5s %-30s %s' endpoint code content-type cf-ray)"
           report "--------------------------------------------------------------------------------"
-          probe "GET /skill/SKILL.md"      https://noslopui.com/skill/SKILL.md
-          probe "GET /"                    https://noslopui.com/
-          probe "GET /mcp"                 https://noslopui.com/mcp
-          probe "POST /api/mcp"            -X POST https://noslopui.com/api/mcp \
-                                            -H 'content-type: application/json' \
-                                            -H 'accept: application/json, text/event-stream' \
-                                            -H 'mcp-protocol-version: 2025-06-18' \
-                                            -d '{"jsonrpc":"2.0","id":1,"method":"tools/list","params":{}}'
-          probe "POST /api/cli/auth/start" -X POST https://noslopui.com/api/cli/auth/start \
-                                            -H 'content-type: application/json' \
-                                            -d '{"clientName":"ci-probe","agents":["claude-code"]}'
+          probe "GET /skill/SKILL.md" https://noslopui.com/skill/SKILL.md
+          probe "GET /" https://noslopui.com/
+          probe "GET /mcp" https://noslopui.com/mcp
+          probe "POST /api/mcp" -X POST https://noslopui.com/api/mcp -H 'content-type: application/json' -H 'accept: application/json, text/event-stream' -H 'mcp-protocol-version: 2025-06-18' -d "$MCP_BODY"
+          probe "POST /api/cli/auth/start" -X POST https://noslopui.com/api/cli/auth/start -H 'content-type: application/json' -d "$START_BODY"
           report '```'
 
+          # A 200 is not the same as a working endpoint — a challenge or an
+          # error page can answer 200 too. The MCP endpoint has to come back
+          # as JSON-RPC with our tools in it, or an agent has nothing to use.
+          mcp=$(curl -s -X POST https://noslopui.com/api/mcp -H 'content-type: application/json' -H 'accept: application/json, text/event-stream' -H 'mcp-protocol-version: 2025-06-18' -d "$MCP_BODY")
+          if printf '%s' "$mcp" | grep -q 'search_design_systems'; then
+            report "MCP tools/list returned real tools."
+          else
+            report "**MCP tools/list did not return tools.** First 200 bytes:"
+            report "$(printf '%s' "$mcp" | head -c 200 | tr -d '\n\r')"
+            fail=$((fail + 1))
+          fi
+
           if [ "$fail" -gt 0 ]; then
-            report "**$fail endpoint(s) did not answer 2xx from this runner.**"
+            report "**$fail check(s) failed from this runner.**"
             report "A 'CHALLENGE PAGE' above means bot protection is challenging machine traffic."
             report "An MCP client cannot solve that, so agents in cloud environments cannot reach noslopUI."
             exit 1
