@@ -1,0 +1,67 @@
+name: Reachability from a datacenter
+
+# Everything this CLI does, an agent also does — from wherever the agent runs.
+# That is often not a laptop: Codespaces, devcontainers, cloud IDEs and CI all
+# come from datacenter IP ranges, which bot protection treats far more harshly
+# than a home connection. A challenge page is unsolvable for an MCP client, so
+# if these endpoints are challenged here, noslopUI is quietly broken for every
+# user in one of those environments.
+#
+# This job exists to notice that. It is informational until the protection is
+# sorted out (continue-on-error), then it should be made blocking.
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  schedule:
+    - cron: '17 6 * * *'
+  workflow_dispatch:
+
+jobs:
+  probe:
+    name: can a machine reach noslopui.com
+    runs-on: ubuntu-latest
+    continue-on-error: true
+    steps:
+      - uses: actions/checkout@v4
+      - name: probe every endpoint the CLI and an agent depend on
+        run: |
+          set +e
+          fail=0
+          probe() {
+            name="$1"; shift
+            status=$(curl -s -o /tmp/body.txt -D /tmp/head.txt -w '%{http_code}' "$@")
+            ray=$(grep -i '^cf-ray:' /tmp/head.txt | tr -d '\r' | cut -d' ' -f2-)
+            ctype=$(grep -i '^content-type:' /tmp/head.txt | tr -d '\r' | cut -d' ' -f2-)
+            challenge=""
+            grep -qi 'just a moment' /tmp/body.txt && challenge=" [CHALLENGE PAGE]"
+            printf '%-28s %s  %-30s %s%s\n' "$name" "$status" "$ctype" "$ray" "$challenge"
+            case "$status" in
+              2*) ;;
+              *) fail=$((fail+1)) ;;
+            esac
+          }
+
+          echo "endpoint                     code  content-type                   cf-ray"
+          echo "--------------------------------------------------------------------------------"
+          probe "GET /skill/SKILL.md"    https://noslopui.com/skill/SKILL.md
+          probe "GET /"                  https://noslopui.com/
+          probe "POST /api/mcp"          -X POST https://noslopui.com/api/mcp \
+                                          -H 'content-type: application/json' \
+                                          -H 'accept: application/json, text/event-stream' \
+                                          -H 'mcp-protocol-version: 2025-06-18' \
+                                          -d '{"jsonrpc":"2.0","id":1,"method":"tools/list","params":{}}'
+          probe "POST /api/cli/auth/start" -X POST https://noslopui.com/api/cli/auth/start \
+                                          -H 'content-type: application/json' \
+                                          -d '{"clientName":"ci-probe","agents":["claude-code"]}'
+
+          echo
+          if [ "$fail" -gt 0 ]; then
+            echo "$fail endpoint(s) did not answer 2xx from this runner."
+            echo "If the body says 'Just a moment', bot protection is challenging machine"
+            echo "traffic — an MCP client cannot solve that, so agents in cloud"
+            echo "environments cannot reach noslopUI at all."
+            exit 1
+          fi
+          echo "All endpoints reachable from a datacenter IP."
