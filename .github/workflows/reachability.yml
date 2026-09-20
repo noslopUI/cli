@@ -7,8 +7,13 @@ name: Reachability from a datacenter
 # if these endpoints are challenged here, noslopUI is quietly broken for every
 # user in one of those environments.
 #
-# This job exists to notice that. It is informational until the protection is
-# sorted out (continue-on-error), then it should be made blocking.
+# It happened: Cloudflare Bot Fight Mode managed-challenged every request from
+# Azure ranges (which is where GitHub's runners live), so the skill download,
+# the MCP endpoint and the CLI sign-in were all unreachable for agents running
+# anywhere but a laptop. Bot Fight Mode cannot be scoped to a path on the free
+# plan, so it was turned off on 2026-09-20 and replaced with a rate-limiting
+# rule on /api/*. This job is what proved it, and it blocks now so the same
+# thing cannot come back unnoticed.
 
 on:
   push:
@@ -22,7 +27,6 @@ jobs:
   probe:
     name: can a machine reach noslopui.com
     runs-on: ubuntu-latest
-    continue-on-error: true
     env:
       MCP_BODY: '{"jsonrpc":"2.0","id":1,"method":"tools/list","params":{}}'
       START_BODY: '{"clientName":"ci-probe","agents":["claude-code"]}'
