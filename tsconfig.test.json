@@ -1,0 +1,9 @@
+{
+  // Tests compile to their own folder so `dist/` stays exactly what ships.
+  "extends": "./tsconfig.json",
+  "compilerOptions": {
+    "rootDir": ".",
+    "outDir": ".test-build"
+  },
+  "include": ["src", "test"]
+}

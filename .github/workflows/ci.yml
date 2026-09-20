@@ -1,0 +1,62 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  # The adapter edits config files, and config files are where operating
+  # systems differ — path separators, home directories, case sensitivity. So
+  # the matrix is the point of this job, not a formality.
+  test:
+    name: test (${{ matrix.os }}, node ${{ matrix.node }})
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest, macos-latest]
+        node: ['20', '22', '24']
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ matrix.node }}
+          cache: npm
+      - run: npm ci
+      - run: npm run typecheck
+      - run: npm test
+
+  # The workflow lives on noslopui.com; the copy here is for `npx skills add`
+  # and for offline installs. A copy that can drift is a copy worth checking.
+  skill-in-sync:
+    name: SKILL.md matches noslopui.com
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - run: node scripts/sync-skill.mjs --check
+
+  # Catches a `files` list that forgot something: if the published package is
+  # missing dist/ or SKILL.md, install works and then falls over at run time.
+  package:
+    name: packs cleanly
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+      - run: npm ci
+      - run: npm pack --dry-run
+      - name: the tarball carries the entry point and the skill
+        run: |
+          npm pack --silent
+          tar -tzf noslopui-*.tgz > files.txt
+          grep -q 'package/dist/index.js' files.txt
+          grep -q 'package/SKILL.md' files.txt
+          grep -q 'package/README.md' files.txt
+          ! grep -q 'package/test/' files.txt

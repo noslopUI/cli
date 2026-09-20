@@ -1,0 +1,47 @@
+{
+  "name": "noslopui",
+  "version": "0.1.0",
+  "description": "Connect your coding agent to noslopUI \u2014 hand-crafted UI components and portable design systems, over MCP.",
+  "keywords": [
+    "mcp",
+    "claude-code",
+    "ui",
+    "design-system",
+    "components",
+    "cli"
+  ],
+  "homepage": "https://noslopui.com",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/noslopUI/cli.git"
+  },
+  "bugs": {
+    "url": "https://github.com/noslopUI/cli/issues"
+  },
+  "license": "MIT",
+  "type": "module",
+  "bin": {
+    "noslopui": "dist/index.js"
+  },
+  "files": [
+    "dist",
+    "SKILL.md",
+    "README.md",
+    "LICENSE"
+  ],
+  "engines": {
+    "node": ">=20.10"
+  },
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "test": "tsc -p tsconfig.test.json && node --test \".test-build/test/**/*.test.js\"",
+    "sync-skill": "node scripts/sync-skill.mjs",
+    "prepublishOnly": "npm run build",
+    "typecheck": "tsc -p tsconfig.test.json --noEmit",
+    "check-skill": "node scripts/sync-skill.mjs --check"
+  },
+  "devDependencies": {
+    "@types/node": "^24.3.0",
+    "typescript": "^5.9.2"
+  }
+}
