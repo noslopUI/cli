@@ -30,6 +30,7 @@ jobs:
     env:
       MCP_BODY: '{"jsonrpc":"2.0","id":1,"method":"tools/list","params":{}}'
       START_BODY: '{"clientName":"ci-probe","agents":["claude-code"]}'
+      NOSLOPUI_PROBE_KEY: ${{ secrets.NOSLOPUI_PROBE_KEY }}
     steps:
       - uses: actions/checkout@v4
       - name: probe every endpoint the CLI and an agent depend on
@@ -50,8 +51,9 @@ jobs:
             challenge=""
             grep -qi 'just a moment' /tmp/body.txt && challenge="  <-- CHALLENGE PAGE"
             report "$(printf '%-26s %-5s %-30s %s%s' "$name" "$status" "$ctype" "$ray" "$challenge")"
+            expected="${EXPECT:-2}"
             case "$status" in
-              2*) ;;
+              "$expected"*) ;;
               *) fail=$((fail + 1)) ;;
             esac
           }
@@ -62,20 +64,38 @@ jobs:
           probe "GET /skill/SKILL.md" https://noslopui.com/skill/SKILL.md
           probe "GET /" https://noslopui.com/
           probe "GET /mcp" https://noslopui.com/mcp
-          probe "POST /api/mcp" -X POST https://noslopui.com/api/mcp -H 'content-type: application/json' -H 'accept: application/json, text/event-stream' -H 'mcp-protocol-version: 2025-06-18' -d "$MCP_BODY"
+          # Every MCP call needs a key or a sign-in (since 2026-09-21), so an
+          # unauthenticated call must be a 401 — from us, not from a bot filter.
+          EXPECT=401 probe "POST /api/mcp (no key)" -X POST https://noslopui.com/api/mcp -H 'content-type: application/json' -H 'accept: application/json, text/event-stream' -H 'mcp-protocol-version: 2025-06-18' -d "$MCP_BODY"
+          probe "GET oauth-protected-resource" https://noslopui.com/.well-known/oauth-protected-resource/api/mcp
+          probe "GET oauth-authorization-server" https://noslopui.com/.well-known/oauth-authorization-server
           probe "POST /api/cli/auth/start" -X POST https://noslopui.com/api/cli/auth/start -H 'content-type: application/json' -d "$START_BODY"
           report '```'
 
-          # A 200 is not the same as a working endpoint — a challenge or an
-          # error page can answer 200 too. The MCP endpoint has to come back
-          # as JSON-RPC with our tools in it, or an agent has nothing to use.
-          mcp=$(curl -s -X POST https://noslopui.com/api/mcp -H 'content-type: application/json' -H 'accept: application/json, text/event-stream' -H 'mcp-protocol-version: 2025-06-18' -d "$MCP_BODY")
-          if printf '%s' "$mcp" | grep -q 'search_design_systems'; then
-            report "MCP tools/list returned real tools."
+          # A status code is not the same as a working endpoint — a challenge
+          # page can answer with any code. The unauthenticated 401 has to be
+          # ours: JSON-RPC, with a WWW-Authenticate that points an MCP client
+          # at the OAuth metadata, or no agent can ever sign in.
+          head=$(curl -s -o /tmp/mcp.txt -D - -X POST https://noslopui.com/api/mcp -H 'content-type: application/json' -H 'accept: application/json, text/event-stream' -H 'mcp-protocol-version: 2025-06-18' -d "$MCP_BODY")
+          if printf '%s' "$head" | grep -qi '^www-authenticate: Bearer resource_metadata=' && grep -q '"jsonrpc"' /tmp/mcp.txt; then
+            report "MCP answers an unauthenticated call with our own 401 and OAuth discovery."
           else
-            report "**MCP tools/list did not return tools.** First 200 bytes:"
-            report "$(printf '%s' "$mcp" | head -c 200 | tr -d '\n\r')"
+            report "**MCP's unauthenticated answer isn't ours.** First 200 bytes:"
+            report "$(head -c 200 /tmp/mcp.txt | tr -d '\n\r')"
             fail=$((fail + 1))
+          fi
+
+          # With a key (a repo secret, when one is set), tools/list must list
+          # our real tools.
+          if [ -n "$NOSLOPUI_PROBE_KEY" ]; then
+            mcp=$(curl -s -X POST https://noslopui.com/api/mcp -H 'content-type: application/json' -H 'accept: application/json, text/event-stream' -H 'mcp-protocol-version: 2025-06-18' -H "authorization: Bearer $NOSLOPUI_PROBE_KEY" -d "$MCP_BODY")
+            if printf '%s' "$mcp" | grep -q 'search_design_systems'; then
+              report "MCP tools/list with a key returned real tools."
+            else
+              report "**MCP tools/list with a key did not return tools.** First 200 bytes:"
+              report "$(printf '%s' "$mcp" | head -c 200 | tr -d '\n\r')"
+              fail=$((fail + 1))
+            fi
           fi
 
           if [ "$fail" -gt 0 ]; then

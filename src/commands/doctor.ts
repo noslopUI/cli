@@ -5,25 +5,11 @@
 // where they started.
 
 import { existsSync, readFileSync } from 'node:fs';
-import { checkServer, mcpUrl, origin } from '../lib/api.js';
+import { checkServer, mcpUrl, origin, whoami } from '../lib/api.js';
 import { ADAPTERS } from '../adapters/index.js';
-import { ConfigUnreadableError, readJsonFile, type JsonObject } from '../lib/json-file.js';
-import { SERVER_NAME } from '../adapters/claude-code.js';
+import { ConfigUnreadableError } from '../lib/json-file.js';
+import { readSession } from '../lib/session.js';
 import { color, fail, hint, ok, say, warn } from '../lib/ui.js';
-
-/** Read back the configured key so we can ask the server whether it still works. */
-function configuredKey(configPath: string): string | null {
-  try {
-    const config = readJsonFile(configPath);
-    const entry = (config?.mcpServers as JsonObject | undefined)?.[SERVER_NAME] as JsonObject | undefined;
-    const headers = (entry?.headers ?? {}) as JsonObject;
-    const auth = typeof headers.Authorization === 'string' ? headers.Authorization : '';
-    const match = auth.match(/^Bearer\s+(\S+)$/i);
-    return match?.[1] ?? null;
-  } catch {
-    return null;
-  }
-}
 
 export async function doctor(): Promise<number> {
   let problems = 0;
@@ -40,14 +26,28 @@ export async function doctor(): Promise<number> {
     problems++;
   }
 
+  say();
+  say(color.bold('This CLI'));
+  const session = readSession();
+  if (!session) {
+    say(`${color.dim('–')} ${color.dim('not signed in (only needed for "noslopui search" and "get"; run "npx noslopui login")')}`);
+  } else {
+    try {
+      const account = await whoami(session.key);
+      ok(`Signed in as ${account.email ?? 'your account'} (${account.plan})`);
+    } catch (err) {
+      fail((err as Error).message);
+      hint('Run "npx noslopui login" to sign in again.');
+      problems++;
+    }
+  }
+
+  let anyAgent = false;
   for (const adapter of ADAPTERS) {
+    if (!(await adapter.detect())) continue;
+    anyAgent = true;
     say();
     say(color.bold(adapter.label));
-
-    if (!(await adapter.detect())) {
-      say(`${color.dim('–')} ${color.dim('not installed on this machine')}`);
-      continue;
-    }
 
     let status;
     try {
@@ -64,36 +64,38 @@ export async function doctor(): Promise<number> {
 
     if (!status.installed) {
       warn('noslopUI is not set up here.');
-      hint('Run "npx noslopui init".');
+      hint(`Run "npx noslopui init --agent ${adapter.id}".`);
       problems++;
     } else {
       ok(`Configured in ${status.configPath}`);
       if (status.url !== mcpUrl()) {
         warn(`The configured url is ${status.url}, but this CLI expects ${mcpUrl()}.`);
-        hint('Run "npx noslopui init" to update it.');
+        hint(`Run "npx noslopui init --agent ${adapter.id}" to update it.`);
         problems++;
       }
       if (status.problem) {
         warn(status.problem);
-        hint('Run "npx noslopui init" to repair the entry.');
+        hint(`Run "npx noslopui init --agent ${adapter.id}" to repair the entry.`);
         problems++;
       }
 
-      const key = configuredKey(status.configPath);
+      const key = await adapter.configuredKey();
       if (key) {
         const probe = await checkServer(key);
         if (probe.keyState === 'ok') {
           ok('The configured key works.');
         } else if (probe.keyState === 'rejected') {
           fail(probe.keyDetail ?? 'The configured key was refused.');
-          hint(`Create a new key at ${origin()}/account?tab=mcp, or run "npx noslopui login".`);
+          hint(`Run "npx noslopui login --agent ${adapter.id}" for a fresh key.`);
           problems++;
         }
       }
     }
 
     const skillPath = adapter.skillPath();
-    if (existsSync(skillPath)) {
+    if (!skillPath) {
+      say(`${color.dim('–')} ${color.dim('no skills folder; the rules reach it through the server')}`);
+    } else if (existsSync(skillPath)) {
       let current = '';
       try {
         current = readFileSync(skillPath, 'utf8');
@@ -104,8 +106,14 @@ export async function doctor(): Promise<number> {
       else warn(`${skillPath} exists but doesn't look like the noslopUI skill.`);
     } else {
       warn('The skill is not installed.');
-      hint('Optional, but it is what makes "build me a website" use noslopUI at all. Run "npx noslopui init".');
+      hint('Optional, but it is what makes "build me a website" use noslopUI at all. Run "npx noslopui update".');
     }
+  }
+
+  if (!anyAgent) {
+    say();
+    warn(`None of the agents this CLI sets up were found (${ADAPTERS.map((a) => a.label).join(', ')}).`);
+    hint(`Any other MCP client can be connected by hand: ${origin()}/mcp`);
   }
 
   say();

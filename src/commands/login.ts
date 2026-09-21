@@ -1,28 +1,37 @@
-// `noslopui login` — a fresh key for an agent that's already set up.
+// `noslopui login` — sign the CLI itself in, like `21st login`.
 //
-// The case this exists for: the key was revoked, or it belongs to the wrong
-// account. It swaps the key in place and leaves everything else — the skill,
-// the server entry's other fields, every other configured server — alone.
+// Saves a key for the agent id `cli` to this machine's config folder, which is
+// what `search`, `get`, `design-system`, `collections` and `whoami` use. It
+// doesn't touch any agent's config: `init` does that.
+//
+// `login --agent <id>` is the other job: a fresh key for an agent that's
+// already set up (its key was revoked, or belongs to the wrong account). It
+// swaps the key in place and leaves the skill and every other server alone.
 
-import { init, type InitOptions } from './init.js';
-import { ADAPTERS } from '../adapters/index.js';
-import { say, warn, hint } from '../lib/ui.js';
+import { init, signIn } from './init.js';
+import { whoami } from '../lib/api.js';
+import { saveSession } from '../lib/session.js';
+import { hint, ok, say } from '../lib/ui.js';
 
-export async function login(options: Omit<InitOptions, 'skill'>): Promise<number> {
-  const configured: string[] = [];
-  for (const adapter of ADAPTERS) {
-    if (!(await adapter.detect())) continue;
-    if ((await adapter.status()).installed) configured.push(adapter.id);
+export async function login(options: { agents?: string[]; yes: boolean; browser: boolean; key?: string }): Promise<number> {
+  if (options.agents?.length) {
+    return init({ ...options, skill: false });
   }
 
-  if (!configured.length) {
-    say();
-    warn('No agent here has noslopUI set up yet.');
-    hint('Run "npx noslopui init" — it does the sign-in and the setup together.');
-    say();
-    return 1;
+  say();
+  let key: string;
+  if (options.key) {
+    key = options.key;
+  } else {
+    const keys = await signIn(['cli'], options.browser);
+    key = keys.find((k) => k.agent === 'cli')?.key ?? '';
+    if (!key) throw new Error('No key was issued for the CLI.');
   }
-
-  // Same path as init, minus the skill: this is only about the key.
-  return init({ ...options, agents: options.agents?.length ? options.agents : configured, skill: false });
+  const account = await whoami(key);
+  const path = saveSession(key);
+  ok(`Signed in as ${account.email ?? 'your account'}.`);
+  hint(`saved to ${path}`);
+  hint('Set up an agent with "npx noslopui init", or search with "npx noslopui search <query>".');
+  say();
+  return 0;
 }

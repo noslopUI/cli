@@ -21,7 +21,8 @@ export class ConfigUnreadableError extends Error {
     readonly path: string,
     readonly cause_: unknown,
   ) {
-    super(`${path} is not valid JSON, so it was left untouched.`);
+    const why = cause_ instanceof Error && cause_.message ? ` (${cause_.message})` : '';
+    super(`${path} couldn't be read safely${why}, so it was left untouched.`);
     this.name = 'ConfigUnreadableError';
   }
 }
@@ -66,11 +67,16 @@ export function backupFile(path: string): string | null {
 
 /** Write via a temp file in the same directory, then rename over the target. */
 export function writeJsonFile(path: string, value: JsonObject, { indent = 2 }: { indent?: number } = {}): void {
+  writeTextFile(path, `${JSON.stringify(value, null, indent)}\n`);
+}
+
+/** The same atomic write for a file that isn't JSON (Codex's config.toml). */
+export function writeTextFile(path: string, text: string): void {
   const dir = dirname(path);
   mkdirSync(dir, { recursive: true });
   const temp = join(dir, `.noslopui-write-${process.pid}-${Date.now()}.tmp`);
   try {
-    writeFileSync(temp, `${JSON.stringify(value, null, indent)}\n`, 'utf8');
+    writeFileSync(temp, text, 'utf8');
     renameSync(temp, path);
   } catch (err) {
     try {

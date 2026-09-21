@@ -99,19 +99,30 @@ export async function waitForApproval(started: StartedSignIn, onTick?: (secondsL
 
 export type ServerCheck = { reachable: boolean; detail: string; keyState?: 'ok' | 'rejected'; keyDetail?: string };
 
+const MCP_HEADERS = {
+  'content-type': 'application/json',
+  accept: 'application/json, text/event-stream',
+  'mcp-protocol-version': '2025-06-18',
+  'user-agent': USER_AGENT,
+};
+
+/** The last JSON-RPC message in a reply, whether it came as plain JSON or SSE-framed. */
+function rpcBody(text: string): any {
+  const line = text.split(/\r?\n/).filter((l) => l.startsWith('data: ')).pop();
+  return JSON.parse(line ? line.slice(6) : text);
+}
+
 /**
  * `doctor`'s probe: can we reach the MCP server, and does this key still work?
- * Uses list_collections because it's the one gated tool that costs the account
- * nothing — no trial clock, no fair-use count.
+ *
+ * Every MCP call needs a key or a sign-in, so without one the right answer is
+ * our own 401 pointing at the OAuth metadata — that's "reachable", and a
+ * challenge page or a proxy error is not. With a key it calls list_collections,
+ * the one tool that costs the account nothing: no trial clock, no fair-use count.
  */
 export async function checkServer(key?: string): Promise<ServerCheck> {
   let res: Response;
-  const headers: Record<string, string> = {
-    'content-type': 'application/json',
-    accept: 'application/json, text/event-stream',
-    'mcp-protocol-version': '2025-06-18',
-    'user-agent': USER_AGENT,
-  };
+  const headers: Record<string, string> = { ...MCP_HEADERS };
   if (key) headers.authorization = `Bearer ${key}`;
   try {
     res = await fetch(mcpUrl(), {
@@ -127,26 +138,90 @@ export async function checkServer(key?: string): Promise<ServerCheck> {
   } catch {
     return { reachable: false, detail: `Could not reach ${mcpUrl()}.` };
   }
+  const text = await res.text();
+
+  if (res.status === 401) {
+    const ours = /resource_metadata=/.test(res.headers.get('www-authenticate') ?? '');
+    if (!ours) return { reachable: false, detail: `${mcpUrl()} answered 401, but not in the way noslopUI does — something in between is answering.` };
+    if (!key) return { reachable: true, detail: 'Server reachable, and asking for sign-in as it should.' };
+    let message = 'The configured key was refused.';
+    try {
+      message = rpcBody(text)?.error?.message ?? message;
+    } catch {}
+    return { reachable: true, detail: 'Server reachable.', keyState: 'rejected', keyDetail: message.split('. ')[0] };
+  }
   if (!res.ok) return { reachable: false, detail: `${mcpUrl()} answered HTTP ${res.status}.` };
 
-  const text = await res.text();
-  const line = text.split(/\r?\n/).filter((l) => l.startsWith('data: ')).pop();
-  let json: any = null;
+  let json: any;
   try {
-    json = JSON.parse(line ? line.slice(6) : text);
+    json = rpcBody(text);
   } catch {
     return { reachable: false, detail: 'The server answered with something unreadable.' };
   }
   if (!key) return { reachable: true, detail: `${(json?.result?.tools ?? []).length} tools available.` };
-
-  const isError = json?.result?.isError === true;
-  const body: string = json?.result?.content?.[0]?.text ?? '';
-  if (isError) {
+  if (json?.result?.isError === true) {
     // The server writes these for an agent to relay; they're already the right
     // words for a person, so pass them through rather than inventing our own.
+    const body: string = json?.result?.content?.[0]?.text ?? '';
     return { reachable: true, detail: 'Server reachable.', keyState: 'rejected', keyDetail: body.split('. ')[0] };
   }
   return { reachable: true, detail: 'Server reachable.', keyState: 'ok', keyDetail: 'Key accepted.' };
+}
+
+export type ToolResult = { isError: boolean; text: string; data: any };
+
+/**
+ * One MCP tool call — what the terminal commands are built on, so the CLI and
+ * an agent can never see different things, and every gate (plan, trial,
+ * fair use) is the server's.
+ */
+export async function callTool(key: string, name: string, args: Record<string, unknown> = {}): Promise<ToolResult> {
+  let res: Response;
+  try {
+    res = await fetch(mcpUrl(), {
+      method: 'POST',
+      headers: { ...MCP_HEADERS, authorization: `Bearer ${key}` },
+      body: JSON.stringify({ jsonrpc: '2.0', id: 1, method: 'tools/call', params: { name, arguments: args } }),
+    });
+  } catch {
+    throw new ApiError(`Could not reach ${origin()}. Check your connection, then run the command again.`);
+  }
+  const text = await res.text();
+  let json: any;
+  try {
+    json = rpcBody(text);
+  } catch {
+    throw new ApiError(`${origin()} returned something that isn't JSON (HTTP ${res.status}).`, res.status);
+  }
+  if (res.status === 401) {
+    throw new ApiError(`${json?.error?.message ?? 'Not signed in.'}\n  Run "npx noslopui login" to sign in again.`, 401);
+  }
+  if (json?.error) throw new ApiError(json.error.message ?? `The server refused the call (${json.error.code}).`);
+  const out: string = json?.result?.content?.[0]?.text ?? '';
+  let data: any = null;
+  try {
+    data = JSON.parse(out);
+  } catch {}
+  return { isError: json?.result?.isError === true, text: out, data };
+}
+
+export type Account = { email: string | null; plan: 'free' | 'trial' | 'paid'; trialState: string; trialEndsAt: string | null };
+
+export async function whoami(key: string): Promise<Account> {
+  let res: Response;
+  try {
+    res = await fetch(`${origin()}/api/cli/me`, { headers: { authorization: `Bearer ${key}`, 'user-agent': USER_AGENT } });
+  } catch {
+    throw new ApiError(`Could not reach ${origin()}. Check your connection, then run the command again.`);
+  }
+  let json: any = null;
+  try {
+    json = await res.json();
+  } catch {
+    throw new ApiError(`${origin()} returned something that isn't JSON (HTTP ${res.status}).`, res.status);
+  }
+  if (!res.ok) throw new ApiError(json?.message ?? `HTTP ${res.status}`, res.status);
+  return json as Account;
 }
 
 export type SkillDownload = { markdown: string; source: 'server' | 'bundled' };

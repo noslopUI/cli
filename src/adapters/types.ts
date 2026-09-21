@@ -1,10 +1,10 @@
 // The shape every agent adapter fills in.
 //
 // Adding an agent is meant to be this file's worth of work and nothing else:
-// one module implementing `Adapter`, one entry in the registry, one row in the
-// project's Phase 0 table, and one real install before it's offered on the
-// site. Deliberately small, because the interesting part of supporting a new
-// agent is finding out how it actually behaves, not writing code.
+// the facts about its config (most agents are one entry in json-agents.ts),
+// one entry in the registry, the same id in the server's CLI_AGENTS, and a
+// fixture test. The interesting part of supporting a new agent is finding out
+// from its own docs where it keeps things, not writing code.
 
 export type ServerEntry = {
   url: string;
@@ -56,11 +56,19 @@ export interface Adapter {
   /** What's currently configured, for `doctor`. */
   status(): Promise<StatusResult>;
 
+  /** The configured key itself, so `doctor` can ask the server whether it still works. Never printed. */
+  configuredKey(): Promise<string | null>;
+
   /** Remove only our entry. Returns false when there was nothing to remove. */
   uninstall(): Promise<boolean>;
 
-  /** Where a user-level skill goes, and how to write one. */
-  installSkill(markdown: string): Promise<SkillResult>;
-  skillPath(): string;
+  /**
+   * Where a user-level skill goes, and how to write one. Null for an agent
+   * with no skills folder — the rules still reach it through the server's
+   * own instructions. Several agents share a folder (~/.agents/skills), so
+   * callers compare paths before removing one.
+   */
+  installSkill(markdown: string): Promise<SkillResult | null>;
+  skillPath(): string | null;
   removeSkill(): Promise<boolean>;
 }

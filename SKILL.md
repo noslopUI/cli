@@ -14,15 +14,15 @@ AI-generated) UI components, full page examples, and portable Design Systems.
 2. **Search the whole catalog on fit.** A design system is a set of rules, not an inventory of parts: any component can be built in any system, so nothing is off-limits once one is chosen.
 3. **Never substitute a catalog component for one the user explicitly saved** in a collection. Their pick was a decision, not an oversight.
 4. **Ask about their brand before building** — logo, brand colours, typeface, real photography. Put their values into the system's tokens (their colour replaces `accent`) and keep the system's rules.
-5. **Check for a collection first:** call `list_collections`. If one fits the request, build from it. If none fits, or no key is configured, don't guess a collection — shortlist two or three design systems with `search_design_systems` and let the user pick.
+5. **Check for a collection first:** call `list_collections`. If one fits the request, build from it. If none fits, don't guess a collection — shortlist two or three design systems with `search_design_systems` and let the user pick.
 6. **If a gated tool says the trial has ended or the fair-use limit is reached, tell the user and stop** — don't retry, and don't swap in something generated from scratch.
 
-Setup, if a tool says no key is configured: the user creates an API key at
-`noslopui.com/account` (MCP tab) and adds it to this MCP server's config as an
-`Authorization: Bearer <key>` header. Search, metadata and design-system token
-tools work without one. Code, prompts and DESIGN.md files need a key on a paid
-plan or inside the account's free 3-day trial, which the first such call
-starts.
+Setup, if the noslopUI tools aren't available: the user runs
+`npx noslopui@latest init`, or adds `https://noslopui.com/api/mcp` in their
+agent and signs in when it asks (steps for each agent: `noslopui.com/mcp`).
+Every call runs as the user's account. Search, metadata and collections are
+free on every account. Code, prompts and DESIGN.md files need a paid plan or
+the account's free 3-day trial, which the first such call starts.
 
 ---
 
@@ -32,10 +32,6 @@ starts.
 
 - A relevant collection exists → **Path A**. The user already did the choosing.
 - No collection, or nothing relevant → **Path B**.
-- It says no key is configured → **Path B**, without calling `get_collection`
-  (it needs the same key, and a guessed collection name finds nothing). Tell the
-  user once that code and DESIGN.md files will need a key — see Setup above —
-  and carry on with everything that works without one.
 
 Several collections and no obvious match → ask. Don't guess between two curated
 sets.
@@ -232,8 +228,8 @@ get_component_code({ id })                                         -> { id, name
 get_component_prompt({ id })                                        -> { id, name, promptText }   [gated: paid or trial]
 ```
 
-The key rides on the connection (the `Authorization` header), so no tool needs
-an `apiKey` argument. Every search, metadata and collection tool is free on
+The account rides on the connection (a key or a sign-in, sent as the
+`Authorization` header), so no tool takes a credential argument. Every search, metadata and collection tool is free on
 every account; `get_design_system_file`, `get_component_code` and
 `get_component_prompt` need the account on a paid plan or inside its free
 3-day trial.
