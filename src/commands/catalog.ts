@@ -22,9 +22,37 @@ export type CatalogOptions = {
   limit?: number;
   format?: string;
   framework?: string;
+  section?: string;
   write?: string;
   force: boolean;
 };
+
+// The catalog's two component sections, as search_components names them.
+// Hyphens are accepted too, since that's how they read in URLs.
+const SECTIONS: Record<string, string> = {
+  ui_blocks: 'ui_blocks',
+  'ui-blocks': 'ui_blocks',
+  blocks: 'ui_blocks',
+  motion_lab: 'motion_lab',
+  'motion-lab': 'motion_lab',
+  effects: 'motion_lab',
+};
+
+/** search_components arguments for these options; throws on a section it doesn't know. */
+export function searchArguments(options: CatalogOptions): Record<string, unknown> {
+  let section: string | undefined;
+  if (options.section !== undefined) {
+    section = SECTIONS[options.section.toLowerCase()];
+    if (!section) throw new Error(`--section takes ui-blocks or motion-lab, not "${options.section}".`);
+  }
+  return {
+    ...(options.args.length ? { query: options.args.join(' ') } : {}),
+    ...(section ? { section } : {}),
+    ...(options.tags.length ? { tags: options.tags } : {}),
+    ...(options.framework ? { framework: options.framework } : {}),
+    ...(options.limit ? { limit: options.limit } : {}),
+  };
+}
 
 const out = (s = '') => process.stdout.write(`${s}\n`);
 const note = (s = '') => process.stderr.write(`${s}\n`);
@@ -63,15 +91,9 @@ function writeOut(path: string, text: string, force: boolean): void {
 const truncate = (s: string, n: number) => (s && s.length > n ? `${s.slice(0, n - 1)}…` : s ?? '');
 
 export async function search(options: CatalogOptions): Promise<number> {
+  const args = searchArguments(options);
   const key = requireKey();
-  const r = check(
-    await callTool(key, 'search_components', {
-      ...(options.args.length ? { query: options.args.join(' ') } : {}),
-      ...(options.tags.length ? { tags: options.tags } : {}),
-      ...(options.framework ? { framework: options.framework } : {}),
-      ...(options.limit ? { limit: options.limit } : {}),
-    }),
-  );
+  const r = check(await callTool(key, 'search_components', args));
   if (options.json) return out(JSON.stringify(r.data, null, 2)), 0;
   const results: any[] = r.data?.results ?? [];
   if (!results.length) {
@@ -79,7 +101,8 @@ export async function search(options: CatalogOptions): Promise<number> {
     return 1;
   }
   for (const item of results) {
-    out(`${color.bold(item.name)}  ${color.dim(item.id)}`);
+    const kind = item.kind === 'motion_lab' ? `  ${color.cyan('Motion Lab')}` : '';
+    out(`${color.bold(item.name)}  ${color.dim(item.id)}${kind}`);
     if (item.description) out(`  ${truncate(item.description, 110)}`);
     out(`  ${color.cyan(item.url)}`);
     out();

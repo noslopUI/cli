@@ -11,11 +11,12 @@ AI-generated) UI components, full page examples, and portable Design Systems.
 ## The rules
 
 1. **Choose one design system before fetching any component, then restyle every component to it** — colours, type scale, spacing, radius, motion. One system applied everywhere is what stops a multi-page build reading as a collage.
-2. **Search the whole catalog on fit.** A design system is a set of rules, not an inventory of parts: any component can be built in any system, so nothing is off-limits once one is chosen.
+2. **Search the catalog before hand-building a section, not instead of hand-building it.** Check `search_components` for every required section first — having the design system's tokens and prose isn't a reason to skip that, and any component can be built in any system, so nothing is off-limits once one is chosen. Only build a section yourself if nothing in the catalog fits it, and tell the user that's what happened.
 3. **Never substitute a catalog component for one the user explicitly saved** in a collection. Their pick was a decision, not an oversight.
 4. **Ask about their brand before building** — logo, brand colours, typeface, real photography. Put their values into the system's tokens (their colour replaces `accent`) and keep the system's rules.
-5. **Check for a collection first:** call `list_collections`. If one fits the request, build from it. If none fits, don't guess a collection — shortlist two or three design systems with `search_design_systems` and let the user pick.
+5. **A collection existing is not the same as the user asking for it.** `list_collections` is free to call, but only build from what it returns when the user asked for their saved items by name or in substance, or confirmed it when you asked. The default "Favorites" list is just where the save button drops a single item with zero setup — a lone design system sitting in it is not a decision to build the whole thing around. One collection with content and no explicit ask → surface it as a question, don't assume either answer. Nothing confirmed → shortlist two or three design systems with `search_design_systems` and let the user pick.
 6. **If a gated tool says the trial has ended or the fair-use limit is reached, tell the user and stop** — don't retry, and don't swap in something generated from scratch.
+7. **A Motion Lab effect is a signature moment, not a section.** Reach for one (`search_components` with `section: "motion_lab"`) when the user asks for an effect, motion, 3D or a showpiece, or the brief clearly calls for one — then use one per page unless they ask for more. Recolour it through its `colorVars` to the design system's tokens, follow its `usage`, and keep its reduced-motion fallback.
 
 Setup, if the noslopUI tools aren't available: the user runs
 `npx noslopui@latest init`, or adds `https://noslopui.com/api/mcp` in their
@@ -28,13 +29,21 @@ the account's free 3-day trial, which the first such call starts.
 
 ## Step 0 — Which path?
 
-**Call `list_collections` first.** It's free on every account.
+**Call `list_collections` first.** It's free on every account. But a
+collection existing is not the same as the user asking you to build from it —
+the default "Favorites" list is just where the save button puts a single item
+with zero setup, so a design system sitting there alone is very often a saved
+reference, not a decision. Don't let its mere presence override what the user
+actually asked for.
 
-- A relevant collection exists → **Path A**. The user already did the choosing.
-- No collection, or nothing relevant → **Path B**.
-
-Several collections and no obvious match → ask. Don't guess between two curated
-sets.
+- The user already said to use their saved items ("build from my collection",
+  "use what I've saved", names a list by name) → **Path A**, no need to ask.
+- Nothing was said either way, but exactly one collection has content that
+  looks relevant → **ask**: name what's in it and let them choose Path A or
+  Path B. Don't assume silently in either direction.
+- No collection, or nothing in any of them fits → **Path B**.
+- Several collections and no obvious match → ask which one. Don't guess
+  between two curated sets.
 
 ---
 
@@ -64,6 +73,17 @@ Do this on both paths, before choosing a system. Two groups of things.
 No brand at all → say so plainly and use the design system's own palette. Don't
 invent a logo.
 
+No real photography → don't ship a grey box. Use a seeded placeholder from
+[Picsum](https://picsum.photos) — `https://picsum.photos/seed/<brand-slug>-<slot-name>/<w>/<h>`
+— so the same build gets the same photo on every regenerate instead of a new
+random one. Mark every one with `<!-- TODO: Replace with real photo, target
+size <w>x<h> -->` immediately above it, and write alt text for the *intended*
+subject ("Hand-poured ceramic mug, studio lighting"), not the placeholder
+("Picsum image"), so it's already correct once they swap it in. Skip
+photography altogether where the chosen design system's own register is
+photo-free (type-led, editorial, most SaaS) rather than forcing a stock photo
+in where the system doesn't call for one.
+
 If the user already stated all this, don't re-ask — restate it in one line and
 move on.
 
@@ -72,8 +92,9 @@ move on.
 ## Path A — the user curated a collection
 
 `get_collection({ listId })` (or `name`). Every item carries a `kind` —
-`design_systems` or `ui_blocks` — plus a top-level `designSystems` array and a
-`guidance` line.
+`design_systems`, `ui_blocks` or `motion_lab` (an effect) — plus a top-level
+`designSystems` array and a `guidance` line. A saved effect is a pick like any
+other: use it where it fits, restyled as in Step 3.
 
 1. **The collection's design system wins.** One in it → that is the system, no
    searching; `get_design_system_file` for its DESIGN.md. More than one → ask
@@ -83,8 +104,10 @@ move on.
    something that covers a section, use it. Always. **Never substitute a
    catalog component for one they explicitly saved**, even if you found
    something you think is better — that was their call, not an oversight.
-3. **Fill the gaps with `search_components`**, searching the whole catalog on
-   fit, and restyle what you find to the collection's design system.
+3. **Fill the gaps with `search_components`, checked before you hand-build
+   anything.** Search the whole catalog on fit, and restyle what you find to
+   the collection's design system. Only build a gap section yourself if
+   nothing in the catalog fits it, and say so in step 4's report.
 4. **Report what you filled in.** "Hero, pricing and footer from your
    collection; you had no testimonial section saved, so I pulled one from the
    catalog and restyled it." They should never have to diff the result to find
@@ -107,12 +130,27 @@ Then filter with `tags` (ANDed) and/or a free-text `query` built from the tone
 words plus purpose:
 
 ```
-search_design_systems({ tags: ["theme:light", "industry:local-business"] })
-search_design_systems({ query: "calm minimal saas", tags: ["theme:light"] })
+search_design_systems({ tags: ["industry:hair-beauty"] })
+search_design_systems({ tags: ["industry:dentist", "theme:light"] })
+search_design_systems({ query: "calm minimal", tags: ["industry:saas"] })
 ```
 
-A system can carry several `industry:` tags — a developer-tools system is
-often a SaaS system too — so don't treat one tag as excluding the others.
+`industry:` is a two-level tree, shaped like a template marketplace's: a
+**field** (`food-drink`, `medical`, `home-services`, `technology`…) and, under
+it, **niches** (`restaurant`, `dentist`, `roofing`, `saas`…). Every system
+tagged with a niche is also tagged with its field, so start with the niche if
+the brief names one and widen to the field when that returns fewer than three.
+
+**"Local business" is not an industry — name the trade.** A plumber is
+`home-services`, a barber `hair-beauty`, a café `food-drink`, a physio
+`medical`, a yoga studio `wellness`, an accountant `professional-services`.
+Each of those looks and reads differently, and filtering on the specific field
+is what keeps two local businesses from getting the same site.
+
+A system can carry several fields — a warm serif system serves a restaurant, a
+wedding planner and a spa alike — so don't treat one tag as excluding the
+others, and don't pick the same system for every brief in a field: read the
+descriptions and match the tone the user described.
 
 Every result comes back with its tags, its token summary (colours, fonts,
 radius) and a `previewUrl`. **Present the 2-3 best matches to the user with
@@ -135,11 +173,32 @@ work.
 
 ### B2. Find components on fit
 
-For each required section, call `search_components` — `section`, `framework`
-and `tags` filters as needed, with `tags` ANDed the same way
-(`["style:editorial"]`, `["animation:carousel"]`). Pick the best
-**structural** match: the thing that actually does what the section needs.
-Largely ignore how it currently looks; you are restyling it regardless.
+**Never write a section's markup from scratch before checking the catalog.**
+Having the DESIGN.md in hand is not the same as being done searching — for
+*every* required section, call `search_components` first — `section` and
+`tags` filters as needed, with `tags` ANDed the same way (`["style:editorial"]`,
+`["animation:carousel"]`). Pick the best **structural** match: the thing that
+actually does what the section needs. Largely ignore how it currently looks;
+you are restyling it regardless. Only once nothing in the catalog fits a
+section is hand-building it acceptable — and say so, don't pass it off as a
+catalog pick.
+
+Every result is published as React/TSX with Tailwind classes, whatever stack
+the build target is. That's not a limitation — the markup and styling aren't
+React-specific, so converting a result to plain HTML, Vue, or anything else is
+a mechanical step (`className` to `class`, drop event-handler props, etc.),
+not a rebuild. Never skip a structurally-right component, or conclude the
+catalog has nothing for a non-React project, over its source format.
+
+**Effects are a separate kind.** `section: "motion_lab"` searches Motion Lab:
+shader backgrounds, 3D, liquid glass, text, cursor and scroll effects. An
+effect isn't a section of the page — it's the one moment people remember the
+page for. Use one where the brief asks for it (an effect, motion, 3D, "make it
+pop") or clearly calls for a showpiece, and one per page unless the user asks
+for more. `get_component` tells you how: `usage` says where it earns its
+place, `props` are its knobs, `colorVars` are the CSS custom properties its
+colours come from, and `libraries` are the exact npm packages and versions to
+install.
 
 Then `get_component_code` for the ones you'll use.
 
@@ -163,6 +222,13 @@ result *theirs* rather than a nice demo:
 - Their wordmark typeface replaces the `display` face if it suits headlines.
   Body text stays the system's text face unless they insist.
 - Their photography replaces placeholder imagery at the same crops and ratios.
+
+**C. Effects take the system's colours through their variables.** A Motion
+Lab effect exposes each colour as a CSS custom property (`colorVars`, e.g.
+`--ml-accent`) and as a prop. Set those from the system's tokens — the brand
+accent, the darkest surface — and tune its `props` toward the system's motion
+rules (slower if the system is calm). Never recolour inside a shader or
+script, and never remove its reduced-motion fallback.
 
 **Substitute values, keep the rules.** The system's spacing scale, radius
 discipline, contrast requirements and "one accent moment per screen" all still
@@ -196,7 +262,9 @@ exists to avoid — catch them here rather than shipping them:
 - **Spacing** — compose from the DESIGN.md's spacing scale; don't invent
   in-between values. Prefer more whitespace over a denser grid.
 - **Motion** — only where it communicates a real state change; the DESIGN.md's
-  durations and easing, never a default bounce or spring.
+  durations and easing, never a default bounce or spring. The one exception is
+  a Motion Lab effect placed where its `usage` says it earns its place — one
+  per page, recoloured to the system.
 - **Named slop-tells to actively reject**: gradient text, purple-on-purple
   palettes, bounce/spring easing on everything, every layout centered with no
   asymmetry, decorative-only animation.
@@ -204,8 +272,8 @@ exists to avoid — catch them here rather than shipping them:
 ## Step 5 — Point back to the catalog for variations
 
 If the result doesn't land, don't re-prompt the same component blind. Point the
-user at `noslopui.com/explore` (cross-catalog search across UI Blocks and
-Design Systems in one grid) to browse real alternatives, and at the
+user at `noslopui.com/explore` (every UI block in one grid, with Motion Lab and
+design-system shelves) to browse real alternatives, and at the
 Collections tab on `noslopui.com/account` to save the ones they like — which
 turns the next build into Path A. Then repeat from Step 3 with whatever they
 pick.
@@ -218,12 +286,13 @@ pick.
 list_collections({})                                           -> { collections: [{ id, name, itemCount }] }
 get_collection({ listId?, name? })                             -> { collection, designSystems: [{id,name}], items: [{ id, name, kind, ... }], guidance }
 
-search_design_systems({ query?, tags?, tag?, limit? })          -> { results: [{ id, name, description, tags, tokens, previewUrl, url }], availableTags }
+search_design_systems({ query?, tags?, tag?, limit? })          -> { results: [{ id, name, description, tags, tokens, previewUrl, url }], availableTags, industryTree }
 get_design_system({ id })                                       -> { id, name, tokens, previewUrl, detailUrl }
 get_design_system_file({ id })                                  -> { id, name, designMd }       [gated: paid or trial]
 
-search_components({ query?, section?, framework?, tags?, tag?, limit? }) -> { results: [{ id, name, kind, tags, url }] }
+search_components({ query?, section?, tags?, tag?, limit? })            -> { results: [{ id, name, kind, tags, url }] }
 get_component({ id })                                             -> { id, name, dependencies, builtWithDesignSystem, previewUrl, detailUrl }
+                                                                     motion_lab items add { usage, props, colorVars, libraries }
 get_component_code({ id })                                         -> { id, name, snippets: [{ language, code }] } [gated: paid or trial]
 get_component_prompt({ id })                                        -> { id, name, promptText }   [gated: paid or trial]
 ```

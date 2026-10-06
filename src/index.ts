@@ -39,7 +39,7 @@ ${color.bold('Account')}
   logout                 Forget this CLI's sign-in
 
 ${color.bold('Catalog')}
-  search <query>         Search components and blocks       --tag <facet:value>, --framework, --limit
+  search <query>         Search blocks and effects          --section ui-blocks|motion-lab, --tag <facet:value>, --limit
   get <id>               Print a component's code            --format tsx|html|vue, --write <file>
   prompt <id>            Print a component's AI-prompt version
   design-systems [query] Search design systems               --tag theme:dark …
@@ -79,6 +79,7 @@ type Parsed = {
   limit?: number;
   format?: string;
   framework?: string;
+  section?: string;
   write?: string;
 };
 
@@ -106,6 +107,7 @@ function parse(argv: string[]): Parsed {
     else if (flag === '--key') parsed.key = take();
     else if (flag === '--format') parsed.format = take();
     else if (flag === '--framework') parsed.framework = take();
+    else if (flag === '--section') parsed.section = take();
     else if (flag === '--write' || flag === '-o') parsed.write = take();
     else if (flag === '--limit') {
       const n = Number(take());
@@ -139,6 +141,7 @@ async function main(): Promise<number> {
     ...(args.limit ? { limit: args.limit } : {}),
     ...(args.format ? { format: args.format } : {}),
     ...(args.framework ? { framework: args.framework } : {}),
+    ...(args.section ? { section: args.section } : {}),
     ...(args.write ? { write: args.write } : {}),
   };
 
