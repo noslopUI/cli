@@ -297,6 +297,11 @@ get_component_code({ id })                                         -> { id, name
 get_component_prompt({ id })                                        -> { id, name, promptText }   [gated: paid or trial]
 ```
 
+`promptText` is the component's full code wrapped in integration
+instructions (stack, file path, pinned dependencies, fonts, the design system it
+was built with). You don't need it to build — `get_component_code` is enough.
+It's for handing one component to a different agent or tool.
+
 The account rides on the connection (a key or a sign-in, sent as the
 `Authorization` header), so no tool takes a credential argument. Every search, metadata and collection tool is free on
 every account; `get_design_system_file`, `get_component_code` and

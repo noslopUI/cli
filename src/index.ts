@@ -41,7 +41,7 @@ ${color.bold('Account')}
 ${color.bold('Catalog')}
   search <query>         Search blocks and effects          --section ui-blocks|motion-lab, --tag <facet:value>, --limit
   get <id>               Print a component's code            --format tsx|html|vue, --write <file>
-  prompt <id>            Print a component's AI-prompt version
+  prompt <id>            Print a ready-to-paste prompt with a component's code
   design-systems [query] Search design systems               --tag theme:dark …
   design-system <id>     Print a design system's DESIGN.md   --write DESIGN.md
   collections            List your saved collections

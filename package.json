@@ -1,7 +1,7 @@
 {
   "name": "noslopui",
-  "version": "0.3.0",
-  "description": "Connect your coding agent to noslopUI \u2014 hand-crafted UI components and portable design systems, over MCP.",
+  "version": "0.3.1",
+  "description": "Connect your coding agent to noslopUI — hand-crafted UI components and portable design systems, over MCP.",
   "keywords": [
     "mcp",
     "claude-code",

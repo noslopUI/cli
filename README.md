@@ -61,7 +61,7 @@ Anything else that speaks MCP over HTTP can be connected by hand — add `https:
 |---|---|
 | `npx noslopui search <query>` | Search UI blocks and Motion Lab effects (`--section ui-blocks\|motion-lab`, `--tag style:editorial`, `--limit`) |
 | `npx noslopui get <id>` | Print a component's code, or `--write src/Hero.tsx` (`--format tsx\|html\|vue`) |
-| `npx noslopui prompt <id>` | Print a component's AI-prompt version |
+| `npx noslopui prompt <id>` | Print a ready-to-paste prompt with a component's code |
 | `npx noslopui design-systems [query]` | Search design systems (`--tag theme:dark`) |
 | `npx noslopui design-system <id>` | Print a DESIGN.md, or `--write DESIGN.md` |
 | `npx noslopui collections` | Your saved collections |
