@@ -310,9 +310,8 @@ every account; `get_design_system_file`, `get_component_code` and
 
 - If a gated call's result carries a `trial` field, that call just started the
   user's trial — tell them, with the end date it gives.
-- A trial covers up to 30 different items per 24 hours, far more than one site
-  needs. Fetch what the build uses, not the catalog speculatively; re-fetching
-  an item you already opened never counts again.
+- Fetch only what the build uses, never the catalog speculatively.
+  Re-fetching an item you already opened is always fine.
 - If a gated call says the trial has ended (or the fair-use limit is reached),
   stop and tell the user plainly — don't retry, and don't quietly swap in
   something generated from scratch in its place. Search and collections keep
