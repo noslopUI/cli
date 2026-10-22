@@ -18,6 +18,7 @@ AI-generated) UI components, full page examples, and portable Design Systems.
 6. **If a gated tool says the trial has ended or the fair-use limit is reached, tell the user and stop** — don't retry, and don't swap in something generated from scratch.
 7. **A Motion Lab effect is a signature moment, not a section.** Reach for one (`search_components` with `section: "motion_lab"`) when the user asks for an effect, motion, 3D or a showpiece, or the brief clearly calls for one — then use one per page unless they ask for more. Recolour it through its `colorVars` to the design system's tokens, follow its `usage`, and keep its reduced-motion fallback.
 8. **Use the system's own hover, active and disabled states for every button, and where one is missing change the fill and the label colour together.** A hover that darkens the background but leaves dark text on it is unreadable — check the label against the *new* fill, never just the old one. Variants (`button-secondary`, `-tinted`, `-outline`, `icon-button`) each have their own `-hover` entry in the DESIGN.md; do not reuse the primary's.
+9. **The catalog's photos, product shots and videos are noslopUI's demo media, not the user's.** Before shipping, list every image and video the build uses and ask how to replace each: their own, generated (an image for anything still or moving as a whole; a short video for photoreal motion that changes shape, like a pour, a spill or billowing smoke, never a stack of stills; thin wisps like steam are code), or a marked placeholder. Never ship a demo's logo or lettering as theirs.
 
 Setup, if the noslopUI tools aren't available: the user runs
 `npx noslopui@latest init`, or adds `https://noslopui.com/api/mcp` in their
@@ -67,14 +68,16 @@ Do this on both paths, before choosing a system. Two groups of things.
 6. **Brand colours** — hex values if they have them, and whether they are fixed
    (a franchise or a rebrand-in-progress changes the answer).
 7. **Existing typeface** — anything already in use they need to stay with?
-8. **Photography or illustration** — real assets to work from, or
-   placeholder-and-replace-later?
+8. **Photography, illustration and video**: real assets to work from? If not,
+   should they be generated (Step 3D: you write the prompts), or leave
+   placeholders to replace later?
 9. **An existing site or profile** to stay consistent with.
 
 No brand at all → say so plainly and use the design system's own palette. Don't
 invent a logo.
 
-No real photography → don't ship a grey box. Use a seeded placeholder from
+No real photography and they'd rather not generate any → don't ship a grey
+box. Use a seeded placeholder from
 [Picsum](https://picsum.photos) — `https://picsum.photos/seed/<brand-slug>-<slot-name>/<w>/<h>`
 — so the same build gets the same photo on every regenerate instead of a new
 random one. Mark every one with `<!-- TODO: Replace with real photo, target
@@ -207,7 +210,7 @@ Then `get_component_code` for the ones you'll use.
 
 ## Step 3 — Apply the system, and fit the brand into it
 
-Two moves, in this order.
+Four moves, in this order.
 
 **A. Restyle everything to the design system.** Same colour variables, same type
 scale, same radius, same spacing scale, same motion durations and easing, across
@@ -249,6 +252,61 @@ machine-readable tokens (`colors`, `typography`, `rounded`, `spacing`,
 sections. Take concrete values from the front matter and the rules from the
 prose.
 
+**D. Replace the catalog's demo media.** Components ship with noslopUI's own
+photos, product cut-outs and frame sequences, usually loaded from
+`assets.noslopui.com`. They show what the slot needs; they aren't the user's
+brand. List every image and video the build uses, with its size, whether it
+needs a transparent background, and how it moves. Then ask the user, per asset
+or for all of them at once: their own, generated, or a marked placeholder
+(Step 1's Picsum rule).
+
+**Pick the medium by how the thing moves:**
+
+| How it moves | What to make |
+|---|---|
+| Not at all (photo, product shot, cut-out) | An image |
+| As a whole: slides, scales, rotates, fades, parallax | An image; the component's code moves it |
+| Changes shape, photoreal: a pour, a spill, a splash, billowing smoke, cloth, fire | A short video, played as frames or a loop. Never fake it with a stack of generated stills: it reads as fake |
+| Changes shape, but thin or stylised: steam, a wisp, a ripple | Code: SVG or a blurred shape with a CSS keyframe, or a shader |
+| Abstract (gradients, particles, noise) | Code. Use a Motion Lab effect |
+
+**Write the prompts; let the user pick the tool.** Write `image-prompts.md`:
+one prompt per asset with its file name, size and aspect. The user pastes each
+into the image app they trust (Gemini, ChatGPT, Firefly or another) and saves
+the results to `public/images/` under those names; then you wire them in. If
+you already have a good image tool, or the user gives you one, generate from
+the same prompts instead. Either way, look at every result on the page before
+using it, and ask for a regenerate rather than ship a weak one.
+
+Write each prompt from the DESIGN.md's imagery prose and the user's brand:
+their product, their colours, the slot's crop and the light the system
+describes. Describe a real photograph ("a product photograph of…"), not "an AI
+image of". Don't ask for film grain or haze; at full size they read as noise.
+For a cut-out, ask for a flat background in a colour the subject doesn't
+contain, or straight onto the page's own background colour if it's flat.
+
+Never generate people presented as real customers, staff or reviewers, and
+never generate a logo the user doesn't have.
+
+**For a video, write `video-briefs.md`.** The user makes the clip in a video
+app (Firefly, Google Flow, Kling…) from a first frame generated as above, and
+checks its terms for watermarks and commercial use. Each brief says:
+- **Motion:** what happens over 2–5 seconds, static camera, and its limits in
+  words: how high, how far, and "everything stays well inside the frame with
+  empty margin on every side". Video models overshoot, and what leaves the
+  frame is lost.
+- **Clean edges:** opaque, solid motion; "no fine mist, no tiny spray, no
+  motion blur, no shadows".
+- **Background:** a flat key colour for solid subjects; pure black for light or
+  soft ones (cloud, smoke, fire), so brightness can become transparency.
+- **What the component expects:** frame count, size and frame rate, read from
+  its code.
+
+Before using a clip, check frames from the start, middle and end on the page's
+real background: the subject never touches an edge, and no key colour is left
+on it. If either fails, tighten the brief and ask for a regenerate. Tell the
+user what you checked.
+
 ## Step 4 — Polish pass (before calling anything done)
 
 Run this against the assembled result. These are the "AI slop" tells noslopUI
@@ -266,6 +324,9 @@ exists to avoid — catch them here rather than shipping them:
   durations and easing, never a default bounce or spring. The one exception is
   a Motion Lab effect placed where its `usage` says it earns its place — one
   per page, recoloured to the system.
+- **Media** — no noslopUI demo image or video left in that the user didn't
+  choose to keep, every placeholder marked with its TODO, and every motion
+  that changes shape photorealistically played from video, not faked with stills.
 - **Named slop-tells to actively reject**: gradient text, purple-on-purple
   palettes, bounce/spring easing on everything, every layout centered with no
   asymmetry, decorative-only animation.
