@@ -1,7 +1,7 @@
 ---
 name: noslopui
 description: Build a distinctive, non-generic page or app UI with noslopUI's hand-crafted catalog over MCP. Plans the page from the visitor's goal, chooses one design system and restyles real catalog components to it, writes the copy first, and checks the result against the measured AI-design tells (cream grounds, serif headline with one italic word, eyebrow labels, thin pages, invented proof). Use when asked to build a landing page, homepage, dashboard, portfolio or any new page or section, when the user mentions a noslopUI collection, or when a UI looks like "AI slop" and needs a real design system.
-version: 2026-11-03
+version: 2026-11-04
 ---
 
 # noslopUI
@@ -21,7 +21,7 @@ AI-generated) UI components, full page examples, and portable design systems.
 8. **Use the system's own hover, active and disabled states for every button, and where one is missing change the fill and the label colour together.** A hover that darkens the background but leaves dark text on it is unreadable, so check the label against the *new* fill, never just the old one. Variants (`button-secondary`, `-tinted`, `-outline`, `icon-button`) each have their own `-hover` entry in the DESIGN.md; do not reuse the primary's.
 9. **The catalog's photos, product shots and videos are noslopUI's demo media, not the user's.** Before shipping, list every image and video the build uses and ask how to replace each: their own, generated, or a placeholder. A placeholder is a labelled frame that names the intended shot. Use a stock or random photo only when the user asks for photo placeholders, because an unrelated photo (a skateboard on a bakery) misrepresents the business. Never ship a demo's logo or lettering as theirs.
 10. **Never invent proof**: no numbers, ratings, quotes, names, logos or "trusted by" the user didn't give. Use a marked placeholder (at most two on a page) or show the product instead.
-11. **Write the copy before the markup, and check the page against the tells before calling it done.** `get_guide` serves the references (`copy`, `tells`, `page-goals`, `layout`, `review`) and `audit_page` lints a page against the tells. A slop warning is fixed or kept with a written reason about this page.
+11. **Write the copy before the markup, and check the page before calling it done.** `get_guide` serves the references (`copy`, `tells`, `page-goals`, `layout`, `review`) and `audit_page` lints a page. Hard rules always get fixed. The style tells are **signals, not bans**: a cream ground, a serif headline or a pill button is a normal choice on its own, and a page gets a **budget of two**. Stacking three or more is the AI house style, so bring it back to two.
 
 Setup, if the noslopUI tools aren't available: the user runs
 `npx noslopui@latest init`, or adds `https://noslopui.com/api/mcp` in their
@@ -31,7 +31,7 @@ audit and collections are free on every account. Code, prompts and DESIGN.md
 files need a paid plan or the account's free 3-day trial, which the first such
 call starts.
 
-**This skill is version 2026-11-03.** The server's instructions name the
+**This skill is version 2026-11-04.** The server's instructions name the
 current version. If they name a newer one, call `get_guide({ topic: "workflow" })`
 and follow that instead of this file.
 
@@ -41,9 +41,12 @@ to. Fetch each one at the step that names it, with
 
 **You will drift toward the same few choices** (cream grounds, a serif
 headline with one italic word, a small label over every heading, three equal
-cards, "Know which X actually Y"). Every model does; we measured it. The steps
-below exist to catch that drift. Follow them in order, and trust what you
-measure over what you meant.
+cards, "Know which X actually Y"). Every model does; we measured it. None of
+them is wrong on its own. Stacked, they are the AI house style. So the style
+tells are signals with a **budget of two per page** (`tells`): spend it on
+purpose, on the choices that serve this brand. The steps below exist to catch
+that drift. Follow them in order, and trust what you measure over what you
+meant.
 
 ---
 
@@ -167,9 +170,9 @@ the scale relationships, the density, the kind of imagery. Then:
   interaction stay; its colours, faces, radius and motion timing become the
   system's. Don't flatten a big, confident component into a generic one while
   restyling it.
-- **Drop its tells.** Catalog components can carry an eyebrow, an italic word
-  or a number strip. Remove those while restyling, the same as anything else
-  in `tells`.
+- **Watch the budget.** Catalog components can carry signals of their own (an
+  eyebrow, an italic word, a number strip). Keep a page at two or fewer in
+  total: keep the ones that serve the brand and drop the rest while restyling.
 - Only hand-build a section when nothing fits. Say which searches you ran.
 
 Every component is published as React/TSX with Tailwind classes, but its
@@ -309,8 +312,9 @@ Then the browser surfaces: `::selection`, the focus ring and the caret take
 the system's colours, and `prefers-reduced-motion` is respected. Then the
 search basics from `copy`.
 
-**Report:** what you changed after reviewing; any slop warning kept, with its
-id and reason; and everything still a placeholder.
+**Report:** what you changed after reviewing; the signals the page spends its
+budget on, and any warning kept, with its id and reason; and everything still a
+placeholder.
 
 ---
 
