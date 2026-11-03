@@ -9,7 +9,7 @@
 // stderr. `npx noslopui get hero-aurora > Hero.tsx` has to produce a file with
 // nothing in it but the component.
 
-import { existsSync, mkdirSync, writeFileSync } from 'node:fs';
+import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { dirname, resolve } from 'node:path';
 import { callTool, type ToolResult } from '../lib/api.js';
 import { readSession } from '../lib/session.js';
@@ -24,6 +24,8 @@ export type CatalogOptions = {
   framework?: string;
   section?: string;
   write?: string;
+  surface?: string;
+  css?: string;
   force: boolean;
 };
 
@@ -118,6 +120,7 @@ export async function designSystems(options: CatalogOptions): Promise<number> {
       ...(options.args.length ? { query: options.args.join(' ') } : {}),
       ...(options.tags.length ? { tags: options.tags } : {}),
       ...(options.limit ? { limit: options.limit } : {}),
+      ...(options.surface ? { surface: options.surface } : {}),
     }),
   );
   if (options.json) return out(JSON.stringify(r.data, null, 2)), 0;
@@ -130,6 +133,10 @@ export async function designSystems(options: CatalogOptions): Promise<number> {
     const inspired = ds.inspiredBy ? color.dim(` · inspired by ${ds.inspiredBy}`) : '';
     out(`${color.bold(ds.name)}  ${color.dim(ds.id)}${inspired}`);
     if (ds.description) out(`  ${truncate(ds.description, 110)}`);
+    if (ds.look) {
+      const l = ds.look;
+      out(`  ${color.dim(`${l.ground} ${l.warmth} ground · ${l.display} display${l.displayFace ? ` (${l.displayFace})` : ''} · ${l.accentHue ?? 'no'} accent`)}${l.slopLook ? color.yellow('  · the AI house look') : ''}`);
+    }
     if (ds.tags?.length) out(`  ${color.dim(ds.tags.join(' · '))}`);
     out(`  ${color.cyan(ds.previewUrl)}`);
     out();
@@ -218,4 +225,36 @@ export async function collection(options: CatalogOptions): Promise<number> {
     out(`${item.name}  ${color.dim(`${item.kind === 'design_systems' ? 'design system' : 'block'} · ${item.id}`)}`);
   }
   return 0;
+}
+
+const SURFACES = ['marketing', 'app', 'content', 'showcase'];
+
+/**
+ * `npx noslopui check page.html`: the server's audit_page tool, so the CLI, an
+ * agent and noslopUI's own publishing all judge a page by the same tells.
+ * Exits 1 when there is a hard finding, so it can gate a CI step.
+ */
+export async function checkPage(options: CatalogOptions): Promise<number> {
+  const key = requireKey();
+  const file = requireArg(options, 'page to check (an .html file)');
+  if (!existsSync(file)) throw new Error(`No file at ${file}.`);
+  if (options.surface && !SURFACES.includes(options.surface)) throw new Error(`--surface takes ${SURFACES.join(', ')}.`);
+  const html = readFileSync(file, 'utf-8');
+  const css = options.css ? readFileSync(options.css, 'utf-8') : undefined;
+  const r = check(
+    await callTool(key, 'audit_page', { html, ...(css ? { css } : {}), ...(options.surface ? { surface: options.surface } : {}) }),
+  );
+  if (options.json) return out(JSON.stringify(r.data, null, 2)), r.data?.summary?.hard ? 1 : 0;
+  const findings: any[] = r.data?.findings ?? [];
+  const s = r.data?.summary ?? {};
+  out(`${color.bold(file)}: ${s.hard ?? 0} hard, ${s.warning ?? 0} warnings, ${s.polish ?? 0} polish`);
+  const tint = (level: string) => (level === 'hard' ? color.red : level === 'warning' ? color.yellow : color.dim);
+  for (const f of findings) {
+    out(`  ${tint(f.level)(f.level.padEnd(7))} ${color.bold(f.id)}  ${f.tell}`);
+    out(`          ${color.dim(f.evidence)}`);
+    out(`          ${color.cyan('fix:')} ${f.fix}`);
+  }
+  if (!findings.length) out(color.green('  No tells found. Look at the page too: this is a static check.'));
+  note(color.dim('Every tell, with examples: https://noslopui.com/skill/references/tells.md'));
+  return s.hard ? 1 : 0;
 }

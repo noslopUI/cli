@@ -66,6 +66,7 @@ Anything else that speaks MCP over HTTP can be connected by hand — add `https:
 | `npx noslopui design-system <id>` | Print a DESIGN.md, or `--write DESIGN.md` |
 | `npx noslopui collections` | Your saved collections |
 | `npx noslopui collection <name>` | What's in one |
+| `npx noslopui check page.html` | Check a page for the AI-design tells (`--surface app` for dashboards). Exits 1 on a hard finding, so it can gate CI |
 
 The catalog commands call the same MCP tools your agent does, with the same access: search and collections are free on every account; code, prompts and DESIGN.md files need a paid plan or the account's free trial. Output is only the thing you asked for, so `get <id> > Hero.tsx` works; `--json` gives the raw result.
 

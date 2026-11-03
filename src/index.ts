@@ -46,6 +46,7 @@ ${color.bold('Catalog')}
   design-system <id>     Print a design system's DESIGN.md   --write DESIGN.md
   collections            List your saved collections
   collection <name|id>   Show one collection
+  check <file.html>      Check a page for the AI-design tells  --surface marketing|app|content|showcase, --css <file>
 
 ${color.bold('Options')}
   --agent <id>     Only this agent (repeatable): ${ADAPTERS.map((a) => a.id).join(', ')}
@@ -80,6 +81,8 @@ type Parsed = {
   format?: string;
   framework?: string;
   section?: string;
+  surface?: string;
+  css?: string;
   write?: string;
 };
 
@@ -108,6 +111,8 @@ function parse(argv: string[]): Parsed {
     else if (flag === '--format') parsed.format = take();
     else if (flag === '--framework') parsed.framework = take();
     else if (flag === '--section') parsed.section = take();
+    else if (flag === '--surface') parsed.surface = take();
+    else if (flag === '--css') parsed.css = take();
     else if (flag === '--write' || flag === '-o') parsed.write = take();
     else if (flag === '--limit') {
       const n = Number(take());
@@ -143,6 +148,8 @@ async function main(): Promise<number> {
     ...(args.framework ? { framework: args.framework } : {}),
     ...(args.section ? { section: args.section } : {}),
     ...(args.write ? { write: args.write } : {}),
+    ...(args.surface ? { surface: args.surface } : {}),
+    ...(args.css ? { css: args.css } : {}),
   };
 
   switch (args.command) {
@@ -176,6 +183,8 @@ async function main(): Promise<number> {
       return catalog.collections(catalogOptions);
     case 'collection':
       return catalog.collection(catalogOptions);
+    case 'check':
+      return catalog.checkPage(catalogOptions);
     default:
       fail(`Unknown command "${args.command}".`);
       usage();
