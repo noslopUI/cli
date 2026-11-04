@@ -1,13 +1,13 @@
 ---
 name: noslopui
 description: Build a distinctive, non-generic page or app UI with noslopUI's hand-crafted catalog over MCP. Plans the page from the visitor's goal, chooses one design system and restyles real catalog components to it, writes the copy first, and checks the result against the measured AI-design tells (cream grounds, serif headline with one italic word, eyebrow labels, thin pages, invented proof). Use when asked to build a landing page, homepage, dashboard, portfolio or any new page or section, when the user mentions a noslopUI collection, or when a UI looks like "AI slop" and needs a real design system.
-version: 2026-11-04.2
+version: 2026-11-04.3
 ---
 
 # noslopUI
 
 You have access to the **noslopUI MCP server**: a catalog of hand-crafted (not
-AI-generated) UI blocks in 92 categories, full page examples, Motion Lab
+AI-generated) UI blocks in over a hundred categories, full page examples, Motion Lab
 effects and portable design systems. This file is the build workflow. Follow it
 step by step: every noslopUI tool result ends with a `nextStep` that tells you
 where you are in it.
@@ -27,7 +27,7 @@ where you are in it.
    sign-in their agent shows (often an "Authenticate" button), or to run
    `npx noslopui@latest login`. Then carry on from the same step. Don't build
    without the catalog while you wait.
-3. **Is this skill current?** This file is version **2026-11-04.2**. The
+3. **Is this skill current?** This file is version **2026-11-04.3**. The
    server's instructions name the current version. If theirs is newer, call
    `get_guide({ topic: "workflow" })` and follow that instead. Tell the user
    once: "Your installed noslopUI skill is out of date; `npx noslopui@latest
@@ -60,7 +60,7 @@ Every call runs as the user's account:
 ## The rules
 
 1. **Choose one design system before fetching any component, then restyle every component to it**: colours, type scale, spacing, radius, motion. One system applied everywhere is what stops a multi-page build reading as a collage.
-2. **Search the catalog for every section before hand-building any of them.** Map each planned section to one of the catalog's 92 categories (`get_guide({ topic: "catalog" })`), call `find_sections` once for the whole plan, and `browse_category` to see every option in a category before picking the ones that carry the page. Any component can be built in any system, so nothing is off-limits once one is chosen. **Keep a component's composition** (its layout, scale relationships, density and imagery) **and change its values** (colours, faces, radius, timing) to the system. Only build a section yourself if nothing in its category fits, and say so.
+2. **Search the catalog for every section before hand-building any of them.** Map each planned section to a catalog category (`get_guide({ topic: "catalog" })`), call `find_sections` once for the whole plan, and `browse_category` to see every option in a category before picking the ones that carry the page. Any component can be built in any system, so nothing is off-limits once one is chosen. **Keep a component's composition** (its layout, scale relationships, density and imagery) **and change its values** (colours, faces, radius, timing) to the system. Only build a section yourself if nothing in its category fits, and say so.
 3. **Never substitute a catalog component for one the user explicitly saved** in a collection. Their pick was a decision, not an oversight.
 4. **Ask about their brand before building**: logo, brand colours, typeface, real photography. Put their values into the system's tokens (their colour replaces `accent`) and keep the system's rules.
 5. **Collections only when the user asks for them.** Don't call `list_collections` or `get_collection` unless the user mentions their saved items, favourites or a collection, or names one. Never offer a collection as an option: the default "Favorites" list is where the save button drops single items, not a build kit. Without an ask, shortlist two or three design systems with `search_design_systems` and let the user pick.
@@ -211,7 +211,7 @@ find_sections({
   surface: "marketing",
   sections: [
     { name: "hero", category: "hero-sections", query: "large product screenshot" },
-    { name: "menu", category: "pricing-sections", query: "restaurant menu with prices" },
+    { name: "menu", category: "menu-sections", query: "restaurant menu with prices" },
     { name: "footer", category: "footers", query: "address hours map" }
   ]
 })
@@ -224,8 +224,9 @@ Each section comes back with:
 **Study before you pick.** For the sections that carry the page (the hero, the
 signature section) and for any category with more blocks than were shown, call
 `browse_category({ category })`. It lists every block in that category with its
-preview, so you choose from all seven footers, not the first three. Open the
-previews of the ones you're considering.
+preview, so you choose from all seven footers, not the first three. The order is
+random: the first one listed is not the best one. Open the previews of the
+ones you're considering.
 
 For each section pick the component whose **composition** fits: the layout,
 the scale relationships, the density, the kind of imagery. Then:
