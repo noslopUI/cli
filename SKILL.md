@@ -1,7 +1,7 @@
 ---
 name: noslopui
 description: Build a distinctive, non-generic page or app UI with noslopUI's hand-crafted catalog over MCP. Plans the page from the visitor's goal, chooses one design system and restyles real catalog components to it, writes the copy first, and checks the result against the measured AI-design tells (cream grounds, serif headline with one italic word, eyebrow labels, thin pages, invented proof). Use when asked to build a landing page, homepage, dashboard, portfolio or any new page or section, when the user mentions a noslopUI collection, or when a UI looks like "AI slop" and needs a real design system.
-version: 2026-11-04.3
+version: 2026-11-04.4
 ---
 
 # noslopUI
@@ -27,7 +27,7 @@ where you are in it.
    sign-in their agent shows (often an "Authenticate" button), or to run
    `npx noslopui@latest login`. Then carry on from the same step. Don't build
    without the catalog while you wait.
-3. **Is this skill current?** This file is version **2026-11-04.3**. The
+3. **Is this skill current?** This file is version **2026-11-04.4**. The
    server's instructions name the current version. If theirs is newer, call
    `get_guide({ topic: "workflow" })` and follow that instead. Tell the user
    once: "Your installed noslopUI skill is out of date; `npx noslopui@latest
@@ -137,7 +137,16 @@ Infer each answer from the brief and state what you assumed:
    chosen from the screen you're building, not the product. A dashboard
    tool's landing page is `marketing`.
 2. Name the **visitor goal** and read its entry.
-3. Write the **page plan**: for a marketing or showcase page, six to nine
+3. **Look at the whole page examples first.** `browse_category` on the page
+   examples for your goal (`marketing/page-examples/landing-pages`, `about-pages`,
+   `pricing-pages`; `ecommerce/page-examples/*`; `application-ui/page-examples/*`).
+   If one fits, start from it and swap or add sections; say which in the picks.
+4. **An app screen is planned by region, not by section.** Pick a shell first
+   (sidebar, multi-column or stacked, from `application-ui/application-shells`),
+   then list its regions and map each to a category. `page-goals` has the
+   regions for common screens: dashboard, inbox, list and detail, settings,
+   calendar, kanban.
+5. Write the **page plan**: for a marketing or showcase page, six to nine
    sections. For each one, write down:
    - what it's for
    - its content, taken from the user's material and never invented
@@ -146,7 +155,7 @@ Infer each answer from the brief and state what you assumed:
 
    Proof follows the goal's entry: the user's real proof, a marked placeholder
    (at most two on the page), or the product shown instead.
-4. **Map every section to a catalog category.** Call
+6. **Map every section (or region) to a catalog category.** Call
    `get_guide({ topic: "catalog" })`, the live map of all categories with
    counts. Write the category path next to each planned section, for example
    `footer → marketing/page-sections/footers` or
@@ -219,7 +228,10 @@ find_sections({
 
 Each section comes back with:
 - its matched category and how many blocks that category holds
-- the best candidates, with preview URLs
+- candidates, with preview URLs and the category each came from
+- `alsoSee`: related categories worth browsing (a dashboard's app shells and
+  stats), with one candidate from each
+- if no category fits, a note saying so and candidates from the whole catalog
 
 **Study before you pick.** For the sections that carry the page (the hero, the
 signature section) and for any category with more blocks than were shown, call
