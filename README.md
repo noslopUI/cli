@@ -14,6 +14,21 @@ Ask any agent for a landing page and you get the same page: gradient headline, p
 
 The MCP server is what your agent calls. The skill is what makes it think to call it at all when you say "build me a website" — so `init` installs both, and you can skip the skill with `--no-skill`.
 
+## What's free
+
+- **The skill and its rules**, and the workflow your agent follows.
+- **The lint:** `npx noslopui check page.html` scores any page for the signs of AI-made design, whether or not noslopUI built it.
+- **150+ components and design systems, code included**, with no account: [noslopui.com/free](https://noslopui.com/free).
+- **Every live preview** in the catalog, and catalog search from your agent.
+
+The code for the rest of the catalog comes with a 3-day free trial (no card), then a plan.
+
+## How it differs from a rules-only design skill
+
+- **Real components to build from**, not only rules to follow: 500+ UI blocks and Motion Lab effects someone designed.
+- **One design system applied to every section**, chosen from 329, so a five-page build reads as one site.
+- **A lint that checks the result** against a budget, so "does this look AI-made?" has an answer you can run in CI.
+
 ## Supported agents
 
 | Agent | `--agent` | Config it writes | Skill it installs |
