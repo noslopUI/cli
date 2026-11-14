@@ -1,7 +1,7 @@
 ---
 name: noslopui
 description: Build a distinctive, non-generic page or app UI with noslopUI's hand-crafted catalog over MCP. Plans the page from the visitor's goal, chooses one design system and restyles real catalog components to it, writes the copy first, and checks the result against the measured AI-design tells (cream grounds, serif headline with one italic word, eyebrow labels, thin pages, invented proof). Use when asked to build a landing page, homepage, dashboard, portfolio or any new page or section, when the user mentions a noslopUI collection, or when a UI looks like "AI slop" and needs a real design system.
-version: 2026-11-04.4
+version: 2026-11-15.1
 ---
 
 # noslopUI
@@ -27,7 +27,7 @@ where you are in it.
    sign-in their agent shows (often an "Authenticate" button), or to run
    `npx noslopui@latest login`. Then carry on from the same step. Don't build
    without the catalog while you wait.
-3. **Is this skill current?** This file is version **2026-11-04.4**. The
+3. **Is this skill current?** This file is version **2026-11-15.1**. The
    server's instructions name the current version. If theirs is newer, call
    `get_guide({ topic: "workflow" })` and follow that instead. Tell the user
    once: "Your installed noslopUI skill is out of date; `npx noslopui@latest
@@ -48,7 +48,7 @@ Every call runs as the user's account:
 |---|---|---|
 | 0 | Collection build? Only if the user asked for one | `list_collections`, `get_collection` |
 | 1 | Ask once: purpose, action, tone, brand, material, **images** | none |
-| 2 | Visitor goal, page plan, and each section mapped to a catalog category | `get_guide` page-goals, layout, catalog |
+| 2 | Visitor goal, page plan, and each section mapped to a catalog category | `get_guide` page-goals, layout, sections, catalog |
 | 3 | Shortlist design systems that look different; pick one | `search_design_systems`, `get_design_system_file` |
 | 4 | Components for every section; study the category before picking | `find_sections`, `browse_category`, `get_component_code` |
 | 5 | Write the copy first | `get_guide` copy |
@@ -131,7 +131,8 @@ Infer each answer from the brief and state what you assumed:
 
 ## Step 2: The goal, the page plan, the categories
 
-`get_guide({ topic: "page-goals" })`, then `get_guide({ topic: "layout" })`.
+`get_guide({ topic: "page-goals" })`, then `get_guide({ topic: "layout" })` and
+`get_guide({ topic: "sections" })`.
 
 1. Name the **screen type** (`marketing`, `app`, `content` or `showcase`),
    chosen from the screen you're building, not the product. A dashboard
@@ -151,6 +152,9 @@ Infer each answer from the brief and state what you assumed:
    - what it's for
    - its content, taken from the user's material and never invented
    - its layout pattern from `layout`, never the same pattern twice in a row
+   - for the hero and any other section `sections` covers, the layout you chose
+     and why (the kind of site's usual one, or a reason to break it); you pass
+     it to the catalog as a `layout:` tag
    - its largest thing (its mass)
 
    Proof follows the goal's entry: the user's real proof, a marked placeholder
@@ -447,7 +451,7 @@ Steps 1, 2 and 5 to 9 apply as usual.
 
 ```
 get_guide({ topic })            -> the guide's text
-  topics: workflow, catalog, page-goals, layout, copy, tells, review
+  topics: workflow, catalog, page-goals, layout, sections, copy, tells, review
 audit_page({ html, css?, surface? })
                                 -> { findings: [{ id, level, tell, fix, evidence }], summary, nextStep }
 
