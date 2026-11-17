@@ -1,7 +1,7 @@
 ---
 name: noslopui
 description: Build a distinctive, non-generic page or app UI with noslopUI's hand-crafted catalog over MCP. Plans the page from the visitor's goal, chooses one design system and restyles real catalog components to it, writes the copy first, and checks the result against the measured AI-design tells (cream grounds, serif headline with one italic word, eyebrow labels, thin pages, invented proof). Use when asked to build a landing page, homepage, dashboard, portfolio or any new page or section, when the user mentions a noslopUI collection, or when a UI looks like "AI slop" and needs a real design system.
-version: 2026-11-15.1
+version: 2026-11-17.1
 ---
 
 # noslopUI
@@ -27,7 +27,7 @@ where you are in it.
    sign-in their agent shows (often an "Authenticate" button), or to run
    `npx noslopui@latest login`. Then carry on from the same step. Don't build
    without the catalog while you wait.
-3. **Is this skill current?** This file is version **2026-11-15.1**. The
+3. **Is this skill current?** This file is version **2026-11-17.1**. The
    server's instructions name the current version. If theirs is newer, call
    `get_guide({ topic: "workflow" })` and follow that instead. Tell the user
    once: "Your installed noslopUI skill is out of date; `npx noslopui@latest
